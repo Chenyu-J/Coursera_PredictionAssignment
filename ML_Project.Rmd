@@ -1,0 +1,111 @@
+---
+title: "ML_Project"
+author: "Chenyu"
+date: "5/26/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Background
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement – a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, your goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website here: http://web.archive.org/web/20161224072740/http:/groupware.les.inf.puc-rio.br/har (see the section on the Weight Lifting Exercise Dataset).
+
+
+
+```{r}
+library(caret)
+library(randomForest)
+library(rpart)
+```
+
+## Objective
+
+Predict a variable from "classe" 
+
+## Process data 
+Read data from the given website
+```{r}
+trainUrl <-"https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
+testUrl <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
+trainFile <- "~/Learning/training.csv"
+testFile  <- "~/Learning/testing.csv"
+if (!file.exists("./data")) {
+  dir.create("./data")
+}
+if (!file.exists(trainFile)) {
+  download.file(trainUrl, destfile=trainFile, method="curl")
+}
+if (!file.exists(testFile)) {
+  download.file(testUrl, destfile=testFile, method="curl")
+}
+
+```
+
+
+Glimse at the data first 
+```{r}
+train <- read.csv("~/Learning/training.csv")
+test <- read.csv("~/Learning/testing.csv")
+dim(train)
+dim(test)
+sum(complete.cases(train))
+```
+
+We could find we got 160 variables, but many of them is missing or meaningless, thus we could clean up the data before learning. 
+```{r}
+train_df <- train[, colSums(is.na(train)) == 0] 
+test_df <- test[, colSums(is.na(test)) == 0]
+
+classe <- train_df$classe
+
+trainRemove <- grepl("^X|timestamp|window", names(train_df))
+train_df <- train_df[, !trainRemove]
+trainCleaned <- train_df[, sapply(train_df, is.numeric)]
+trainCleaned$classe <- classe
+testRemove <- grepl("^X|timestamp|window", names(test_df))
+test_df <- test_df[, !testRemove]
+testCleaned <- test_df[, sapply(test_df, is.numeric)]
+
+dim(trainCleaned)
+dim(testCleaned)
+```
+
+We further divide the cleaned training data set into training vs. validation set. 
+```{r}
+set.seed(123)
+
+train_ind <- sample(seq_len(nrow(train_df)),size = floor(0.75*nrow(train_df)))
+
+train_set <- trainCleaned[train_ind, ]
+validate_set <- trainCleaned[-train_ind, ]
+
+```
+
+
+## Build Model
+```{r}
+model <- randomForest(classe ~., data=train_set, type="class")
+summary(model)
+```
+
+## Cross Validation 
+```{r}
+confusionMatrix(predict(model, validate_set), validate_set$classe)
+```
+
+
+## Predict 20 different test cases
+```{r}
+test_result <- predict(model, test_df)
+test_result
+```
+
+
+
+
+
+
+
+
